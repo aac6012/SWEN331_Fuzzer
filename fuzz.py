@@ -3,6 +3,14 @@
 import sys
 import requests
 import getopt
+from html.parser import HTMLParser
+
+
+class MyHTMLParser(HTMLParser):
+    found_links = []
+    def handle_starttag(self, tag, attrs):
+        if tag == 'a':
+            self.found_links.append(attrs[0][1])
 
 def getArgs(passed_args):
     # Get the arguments passed from command line.
@@ -45,9 +53,10 @@ def getArgs(passed_args):
 
 # This is the main method run during execution
 def main(passed_args):
-    print()
+    print('\n----------------------------------------')
     args = getArgs(passed_args)
     if args[0] == 'discover':
+        # args[1] contains the base url.
         discover(args[1], args[2:])
     elif args[0] == 'fuzz':
         fuzz(args[1], args[2:])
@@ -60,36 +69,43 @@ def discover(url, args):
     # - Custom authentication
     # - Page discovery: (Link discovery and Page guessing)
     discovered = []
-    discoverPages(url, '', discovered)
+    discoverPages(url, discovered)
     print('DISCOVERED LINKS:\n', discovered)
     # - Input discovery: (Parse URLs, Form Parameters, Cookies)
     pass
 
 # This will be a recursive function to discover/process all pages.
-def discoverPages(base_url, current_url, visited):
-    visited.append(base_url + current_url)
-    current_links = discoverPagesCurrent(base_url, current_url)
+def discoverPages(url, visited):
+    visited.append(url)
+    current_links = discoverPagesCurrent(url)
     for link in current_links:
-        if (base_url + link) not in visited:
-            discoverPages(base_url, link, visited)
+        if link not in visited:
+            PARSER_LIST = []
+            discoverPages(link, visited)
 
-def discoverPagesCurrent(base_url, url):
-    r = requests.get(base_url + url)
-    lst = r.text.split(base_url)
-    lst = lst[1:]
-    for x in range(0, len(lst)):
-        # Get the element from the list
-        element = lst[x]
-        # Modify the element to remove tailing text
-        element = element[:element.find('\"')]
-        if not element.startswith('/'):
-            element = '/' + element
+# This will parse and return the current url's html file to extract links to other pages.
+def discoverPagesCurrent(url):
+    # instantiate the parser
+    parser = MyHTMLParser()
+    # make the request to the url
+    r = requests.get(url)
+    # feed the returned html text into the parser
+    parser.feed(r.text)
+    # get the list of links from the parser object
+    links = parser.found_links
+    # loop through all links to check that each link is properly formed
+    for x in range(0, len(links)):
+        if not links[x].startswith('http://'):
+            links[x] = r.url[:r.url.rfind('/')+1] + links[x]
+        # This will find any '?' characters in the link, signifying parameters.
+        params_index = links[x].rfind('?')
+        # The base url will be the same regardless of the parameters passed, so eliminate the parameters from the link.
+        if params_index != -1:
+            links[x] = links[x][:params_index]
 
-        # Store the modified element back into the list
-        lst[x] = element
-    return lst
-
-
+    # add the url returned from the request, in case the url parameter is different.
+    links.append(r.url)
+    return links
 
 
 
