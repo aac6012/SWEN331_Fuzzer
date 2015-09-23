@@ -8,9 +8,13 @@ from html.parser import HTMLParser
 
 class MyHTMLParser(HTMLParser):
     found_links = []
+    found_input = []
     def handle_starttag(self, tag, attrs):
         if tag == 'a':
             self.found_links.append(attrs[0][1])
+        if tag == 'input':
+            self.found_input.append(self.get_starttag_text())
+            pass
 
 def getArgs(passed_args):
     # Get the arguments passed from command line.
@@ -68,11 +72,12 @@ def discover(url, args):
     # Needed for discover:
     # - Custom authentication
     # - Page discovery: (Link discovery and Page guessing)
-    discovered = []
-    discoverPages(url, discovered)
-    print('DISCOVERED LINKS:\n', discovered)
+    discovered_pages = []
+    discoverPages(url, discovered_pages)
+    print('DISCOVERED LINKS:\n', discovered_pages)
     # - Input discovery: (Parse URLs, Form Parameters, Cookies)
-    pass
+    discovered_input = discoverInput(discovered_pages)
+    print('DISCOVERED INPUTS:\n', discovered_input)
 
 # This will be a recursive function to discover/process all pages.
 def discoverPages(url, visited):
@@ -80,7 +85,6 @@ def discoverPages(url, visited):
     current_links = discoverPagesCurrent(url)
     for link in current_links:
         if link not in visited:
-            PARSER_LIST = []
             discoverPages(link, visited)
 
 # This will parse and return the current url's html file to extract links to other pages.
@@ -107,7 +111,24 @@ def discoverPagesCurrent(url):
     links.append(r.url)
     return links
 
+def discoverInput(url_list):
+    inputs = []
+    for url in url_list:
+        for element in discoverInputCurrent(url):
+            if element not in inputs:
+                inputs.append(element)
+    return inputs
 
+def discoverInputCurrent(url):
+    # instantiate the parser
+    parser = MyHTMLParser()
+    # make the request to the url
+    r = requests.get(url)
+    # feed the returned html text into the parser
+    parser.feed(r.text)
+    # get the list of links from the parser object
+    inputs = parser.found_input
+    return inputs
 
 def fuzz(url, args):
     pass
