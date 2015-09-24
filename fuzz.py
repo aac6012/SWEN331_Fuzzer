@@ -52,7 +52,10 @@ def getArgs(passed_args):
     try:
         parsed_options = getopt.getopt(passed_args, '', long_options)
     except getopt.GetoptError as e:
-        print('\nInvalid option!', e.msg, sep='\n')
+        print('\n', e.msg, sep='')
+        print('Valid options for', args['mode'],':')
+        for opt in long_options:
+            print('\t--', opt[:-1], sep='')
         sys.exit(0)
 
     # Add the extracted options to the args dict
@@ -97,16 +100,20 @@ def main(passed_args):
         print('Not a valid <mode> param.  Must be \'discover\' or \'test\'')
         sys.exit(0)
 
+# Needed for discover:
+# - Custom authentication
+# - Page discovery: (Link discovery and Page guessing)
+# - Input discovery: (Parse URLs, Form Parameters, Cookies)
 def discover(args):
-    # Needed for discover:
-    # - Custom authentication
-    # - Page discovery: (Link discovery and Page guessing)
+
+    # Link discovery (via crawling)
     crawled_pages = []
     crawlPages(args['url'], crawled_pages)
     print('','-'*50, 'CRAWLED LINKS:', '-'*50, sep='\n')
     for page in crawled_pages:
         print(page)
     print('\n')
+
     # Page guessing
     guessed_pages = guessPages(args['url'], args['common-words'])
     print('-'*50, 'GUESSED LINKS:', '-'*50, sep='\n')
@@ -114,14 +121,27 @@ def discover(args):
         print(page)
     print('\n')
 
-    # - Input discovery: (Parse URLs, Form Parameters, Cookies)
-    discovered_input = discoverInput(crawled_pages)
-    print('-'*50, 'DISCOVERED INPUTS:', '-'*50, sep='\n')
+    # Discover the input on both crawled and discovered pages.
+    # Form parameters
+    discovered_input = discoverInput(crawled_pages + guessed_pages)
+    print('-'*50, 'DISCOVERED FORM INPUTS:', '-'*50, sep='\n')
     for key in discovered_input.keys():
         print(key, ':')
         for val in discovered_input[key]:
             print(val)
         print('-'*10)
+    print('\n')
+
+    # URL Parameters
+    url_parameters = discoverURLParameters(crawled_pages + guessed_pages)
+    print('-'*50, 'DISCOVERED URL PARAMETERS:', '-'*50, sep='\n')
+    for key in url_parameters.keys():
+        print(key, ':')
+        for val in url_parameters[key]:
+            print(val)
+        print('-'*10)
+
+
 
 # This will be a recursive function to discover/process all pages.
 def crawlPages(url, visited):
@@ -160,7 +180,7 @@ def crawlPagesCurrent(url):
 
 def guessPages(base_url, filename):
     guessed_pages = []
-    possible_endings = ['', '.php', '.txt', '.html', '.jsp']
+    possible_endings = ['', '.php', '.asp', '.html', '.jsp', '.net']
     # Load the file of common words
     f = open(filename, 'r')
     # Each line is a single word
@@ -176,10 +196,6 @@ def guessPages(base_url, filename):
     return guessed_pages
 
 
-
-
-
-
 def discoverInput(url_list):
     inputs = {}
     for url in url_list:
@@ -190,8 +206,12 @@ def discoverInput(url_list):
     return inputs
 
 def discoverInputCurrent(url):
-    # instantiate the parser
+    # create the parser
     parser = MyHTMLParser()
+    # clear the found_input and found_links list
+    parser.found_input = []
+    parser.found_links = []
+
     # make the request to the url
     r = requests.get(url)
     # feed the returned html text into the parser
@@ -199,6 +219,65 @@ def discoverInputCurrent(url):
     # get the list of links from the parser object
     inputs = parser.found_input
     return inputs
+
+
+
+def discoverURLParameters(url_list):
+    # Create a dict for the params.  The keys will be the url's and the values will be a list of possible params.
+    params = {}
+    # Loop through all url's provided in url_list
+    for url in url_list:
+        # Discover all the current params present from the current page's links.
+        discovered = discoverURLParametersCurrent(url)
+
+        # Loop through each value in the discovered dict.
+        for key in discovered:
+            # Add the value to the params dict if it is not already there. If it is already there, don't add it again.
+            if key not in params.keys():
+                params[key] = discovered[key]
+
+    return params
+
+# This acts similarly to crawlPagesCurrent in that it rips the links first and then returns a dict
+# containing the page url as a key and all the discovered parameters as the value(s).
+def discoverURLParametersCurrent(url):
+    # instantiate the parser
+    parser = MyHTMLParser()
+    # clear the found_input and found_links list
+    parser.found_input = []
+    parser.found_links = []
+
+    # make the request to the url
+    r = requests.get(url)
+    # feed the returned html text into the parser
+    parser.feed(r.text)
+    # get the list of links from the parser object
+    links = parser.found_links
+
+    urlParams = {}
+    # loop through all links to check that each link is properly formed
+    for link in links:
+        if not link.startswith('http://'):
+            link = r.url[:r.url.rfind('/')+1] + link
+        # This will find any '?' characters in the link, signifying parameters.
+        params_index = link.rfind('?')
+        # The base url will be the same regardless of the parameters passed, so eliminate the parameters from the link.
+        if params_index != -1 and r.status_code != '404':
+            # Split the parameters by '&' symbol.
+            params = link[params_index+1:].split('&')
+            # Eliminate the assigned value of param to extract param name.
+            for x in range(0, len(params)):
+                params[x] = params[x][:params[x].rfind('=')]
+            link_no_params = link[:params_index]
+            if link_no_params not in urlParams.keys():
+                urlParams[link_no_params] = params
+            else:
+                for p in params:
+                    if p not in urlParams[link_no_params]:
+                        urlParams[link_no_params].append(p)
+
+    return urlParams
+
 
 def fuzz(args):
     pass
