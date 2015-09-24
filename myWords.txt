@@ -4,3 +4,4 @@ index
 product
 page
 root
+setup
