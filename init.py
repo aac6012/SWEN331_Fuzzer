@@ -25,10 +25,10 @@ def getArgs(passed_args):
     elif args['mode'] == 'discover':
         long_options = ['custom-auth=', 'common-words=']
     elif args['mode'] == 'test':
-        long_options = ['custom-auth=', 'vectors=', 'sensitive=', 'random=', 'slow=']
+        long_options = ['custom-auth=', 'common-words=', 'vectors=', 'sensitive=', 'random=', 'slow=']
     # Get the url argument
     args['url'] = passed_args[1]
-    # TODO (maybe): validate url input.
+
     if not args['url']:
         print('Not a valid url!')
         sys.exit(0)
@@ -67,11 +67,27 @@ def getArgs(passed_args):
         elif 'sensitive' not in keys:
             print('Unable to run.\nTest requires the \'--sensitive\' option to be specified.')
             sys.exit(0)
+        elif 'common-words' not in keys:
+            print('Unable to run.\nTest requires the \'--common-words\' option to be specified.')
         # Set non-required args to default if not specified.
         if 'random' not in keys:
             args['random'] = False
+        else:
+            if args['random'].lower() == 'true':
+                args['random'] = True
+            elif args['random'].lower() == 'false':
+                args['random'] = False
+            else:
+                print('Unable to run.\nInvalid value for \'--random\' option.')
+                sys.exit(0)
         if 'slow' not in keys:
             args['slow'] = 500
+        else:
+            try:
+                args['slow'] = int(args['slow'])
+            except:
+                print('Unable to run.\nInvalid value for \'--slow\' option.')
+                sys.exit(0)
 
     # Return the constructed args dict.
     return args

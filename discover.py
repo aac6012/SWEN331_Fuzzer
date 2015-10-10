@@ -13,63 +13,48 @@ class MyHTMLParser(HTMLParser):
         if tag == 'a':
             self.found_links.append(attrs[0][1])
         if tag == 'input':
-            self.found_input.append(self.get_starttag_text())
-            pass
+            #create a new dictionary for the input value.
+            dic = {}
+            #copy all attributes to the dictionary
+            for value in attrs:
+                dic[value[0]] = value[1]
+            #add a value to hold the text of the input tag.
+            dic['text'] = self.get_starttag_text()
+            #append the tag to the list of tags (dictionaries)
+            self.found_input.append(dic)
 
 # Needed for discover:
 # - Custom authentication
 # - Page discovery: (Link discovery and Page guessing)
 # - Input discovery: (Parse URLs, Form Parameters, Cookies)
-def discover(args):
-    # If auth arg is present, use it for 'get' calls.
-    # Create the requests session to use for later 'get' calls.
-    session = requests.session()
-    # If there is an 'auth' arg, post the session the correct login info for the session
-    if 'custom-auth' in args.keys():
-        if args['custom-auth'] == 'dvwa':
-            payload = {'password': 'password', 'username': 'admin'}
-            session.post('http://127.0.0.1/dvwa/login.php', data=payload)
+
+# args - The arguments parsed from init
+# session - The session created for authentication to the site
+# Will return a dictionary with the following keys: crawledPages, guessedPages, formParams, urlParams, and cookies.
+def discover(args, session):
+    #Create a dictionary to return later. (Used for 'test')
+    discoveries = {}
 
     # Link discovery (via crawling)
     crawled_pages = []
     crawlPages(args['url'], crawled_pages, session, args['url'])
-    print('','-'*50, 'CRAWLED LINKS:', '-'*50, sep='\n')
-    for page in crawled_pages:
-        print(page)
-    print('\n')
+    discoveries['crawledPages'] = crawled_pages
 
     # Page guessing
     guessed_pages = guessPages(args['url'], args['common-words'], session)
-    print('-'*50, 'GUESSED LINKS:', '-'*50, sep='\n')
-    for page in guessed_pages:
-        print(page)
-    print('\n')
+    discoveries['guessedPages'] = guessed_pages
 
     # Discover the input on both crawled and discovered pages.
     # Form parameters
-    discovered_input = discoverInput(crawled_pages + guessed_pages, session)
-    print('-'*50, 'DISCOVERED FORM INPUTS:', '-'*50, sep='\n')
-    for key in discovered_input.keys():
-        print(key, ':')
-        for val in discovered_input[key]:
-            print(val)
-        print('-'*10)
-    print('\n')
+    discoveries['formParams'] = discoverInput(crawled_pages + guessed_pages, session)
 
     # URL Parameters
-    url_parameters = discoverURLParameters(crawled_pages + guessed_pages, session)
-    print('-'*50, 'DISCOVERED URL PARAMETERS:', '-'*50, sep='\n')
-    for key in url_parameters.keys():
-        print(key, ':')
-        for val in url_parameters[key]:
-            print(val)
-        print('-'*10)
-    print('\n')
+    discoveries['urlParams'] = discoverURLParameters(crawled_pages + guessed_pages, session)
 
     # Get the cookies from just the base directory
-    cookies = discoverCookies(args['url'], session)
-    print('-'*50, 'DISCOVERED COOKIES', '-'*50, sep='\n')
-    print(cookies)
+    discoveries['cookies'] = discoverCookies(args['url'], session)
+
+    return discoveries
 
 
 # This will be a recursive function to discover/process all pages.
@@ -138,9 +123,10 @@ def discoverInput(url_list, session):
     inputs = {}
     for url in url_list:
         inputs[url] = []
-        for element in discoverInputCurrent(url, session):
-            if element not in inputs[url]:
-                inputs[url].append(element)
+        discovered = discoverInputCurrent(url, session)
+        for dic in discovered   :
+            if dic not in inputs[url]:
+                inputs[url].append(dic)
     return inputs
 
 def discoverInputCurrent(url, session):

@@ -1,25 +1,67 @@
 """
 This handles the test part of the fuzzer.
 """
+import discover
+import requests
+import time
+import requests.exceptions as exceptions
 
 #Test all of the possible vectors.
-def test(args):
-    print("Testing application...")
+def test(args, session):
     #Parse the values from the vectors file.
-    values = parseVectors(args['vectors'])
-    css(values['CSS'])
-    bfo(values['BFO'])
-    fse(values['FSE'])
-    int(values['INT'])
-    sqp(values['SQP'])
-    sqi(values['SQI'])
-    ldap(values['LDAP'])
-    xpath(values['XPATH'])
-    xml(values['XML'])
+    vectors = parseVectors(args['vectors'])
+    discovered = discover.discover(args, session)
+
+    xss(vectors['XSS'], discovered, args['slow'])
+    #bfo(vectors['BFO'])
+    #fse(vectors['FSE'])
+    #int(vectors['INT'])
+    #sqp(vectors['SQP'])
+    #sqi(vectors['SQI'])
+    #ldap(vectors['LDAP'])
+    #xpath(vectors['XPATH'])
+    #xml(vectors['XML'])
 
 #Cross-site scripting
-def css(values):
+def xss(vector, discovered, slow):
     print("Testing cross-site scripting")
+
+    #Uncomment this line will to cause a 404 error later on.
+    #discovered['formParams']['http://127.0.0.1/dvwa/404'] = [{'name': '404'}]
+
+    #Loop through each key in formParams, each key is a url
+    for url in discovered['formParams'].keys():
+        #Loop through each value in the vector list.
+        for value in vector:
+            #Construct payload to pass in request
+            payload = {}
+            for param in discovered['formParams'][url]:
+                payload[param.get('name')] = value
+            #Get the start time for the request.
+            start_time = time.time()
+            #Make the POST request to the url using the build payload.
+            response = requests.post(url, data=payload)
+            response.content
+            #Calculate the response time, using the current and start time.
+            response_time = (time.time() - start_time)
+            response_time = response_time * 1000
+
+            #Check for possible Denial of Service error from slow response.
+            if response_time > slow:
+                print("Slow response time, possible DOS!")
+                print("URL: ", url)
+                print("Params: ", payload)
+                print("Response time: ", response_time)
+                print()
+            #Check for error codes returned from the response object.
+            try:
+                response.raise_for_status()
+            except exceptions.HTTPError as e:
+                print(e)
+                print('URL: ', url)
+                print('Params: ', payload)
+
+
 
 #Buffer overflow
 def bfo(values):
@@ -56,7 +98,7 @@ def xml(values):
 
 def parseVectors(file):
     #Create the dictionary of values to return
-    vectors = dict(CSS=[], BFO=[], FSE=[], INT=[], SQP=[], SQI=[], LDAP=[], XPATH=[], XML=[])
+    vectors = dict(XSS=[], BFO=[], FSE=[], INT=[], SQP=[], SQI=[], LDAP=[], XPATH=[], XML=[])
 
     #Create the tag variable to use for parsing.
     tag = 'nothing'
@@ -74,6 +116,7 @@ def parseVectors(file):
         else:
             #If the tag didn't change, add the current value to the appropriate list.
             if tag in vectors.keys():
+                #Add the current line to the list, removing the next line character.
                 vectors.get(tag).append( line[0:len(line)-1] )
 
     return vectors
