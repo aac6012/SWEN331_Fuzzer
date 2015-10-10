@@ -32,7 +32,7 @@ def discover(args):
 
     # Link discovery (via crawling)
     crawled_pages = []
-    crawlPages(args['url'], crawled_pages, session)
+    crawlPages(args['url'], crawled_pages, session, args['url'])
     print('','-'*50, 'CRAWLED LINKS:', '-'*50, sep='\n')
     for page in crawled_pages:
         print(page)
@@ -73,12 +73,16 @@ def discover(args):
 
 
 # This will be a recursive function to discover/process all pages.
-def crawlPages(url, visited, session):
+# url - The current url
+# visited - The list of urls already seen
+# session - The session that holds the authentication for a website.
+# base_url - The base url, used to prevent leaving the current site.
+def crawlPages(url, visited, session, base_url):
     visited.append(url)
     current_links = crawlPagesCurrent(url, session)
     for link in current_links:
-        if link not in visited:
-            crawlPages(link, visited, session)
+        if link not in visited and link.startswith(base_url):
+            crawlPages(link, visited, session, base_url)
 
 # This will parse and return the current url's html file to extract links to other pages.
 def crawlPagesCurrent(url, session):

@@ -5,3 +5,4 @@ product
 page
 root
 setup
+about

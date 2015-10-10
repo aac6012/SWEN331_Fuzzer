@@ -13,7 +13,7 @@ def main(passed_args):
 
     if args['mode'] == 'discover':
         discover.discover(args)
-    elif args['mode'] == 'fuzz':
+    elif args['mode'] == 'test':
         test.test(args)
     else: # This else is somewhat redundant.  Mode input is verified in getArgs.
         print('Not a valid <mode> param.  Must be \'discover\' or \'test\'')
