@@ -92,7 +92,7 @@ def form_parameters(vectors, discovered, slow, sensitive):
                 #Check for possible data leaks:
                 leaked = []
                 for sens in sensitive:
-                    if sens in response.content:
+                    if sens in response.text:
                         leaked.append(sens)
 
                 if len(leaked) > 0:
@@ -152,7 +152,7 @@ def url_parameters(vectors, discovered, slow, sensitive):
                 #Check for possible data leaks:
                 leaked = []
                 for sens in sensitive:
-                    if sens in response.content:
+                    if sens in response.text:
                         leaked.append(sens)
 
                 if len(leaked) > 0:
