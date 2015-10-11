@@ -13,6 +13,7 @@ To run:
 1. Open up a command prompt.
 2. Navigate to the directory with 'fuzz.py'
 3. Run the program using the following format: 'fuzz <mode> <url> <options>'. See below for valid arguments.
+4. The program output may be long.  To send the output to a file, add the following to the end of the command line run statment: ' > output.txt'
 
 Valid arguments:
 - <mode>: 'discover' or 'test' (Do not enter quotes into the command line statement)

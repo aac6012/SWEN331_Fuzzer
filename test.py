@@ -11,10 +11,15 @@ from html.parser import HTMLParser
 class MyHTMLParser(HTMLParser):
     found = False
     def handle_starttag(self, tag, attrs):
-        #We will be using a button id of 'Free money' to identify those that were put into html from lack of sanitizing.
+        #We will be trying to add buttons via lack of sanitization inputs.
         if tag == 'button':
-            print('found button', attrs)
+            #'Free money' was the defined id of the button we tried to add via input.
             if  attrs[0][1]=='Free money':
+                self.found = True
+
+        #We will also be trying to add a script via lack of sanitization.
+        if tag == 'script':
+            if attrs[0][1] == 'Free money':
                 self.found = True
 
 #This will be used later for printing out error messages.
@@ -193,7 +198,22 @@ def sanitization_check(discovered):
 
     for url in formParams:
         parser.found = False
-        value = "<button id='Free money'>Free money!</button>"
+        value = '<button id="Free money">Free money!</button>'
+        payload = {}
+        for param in formParams[url]:
+            if param.get('name'):
+                payload[param['name']] = value
+
+        #Make the POST request to the url using the build payload.
+        response = requests.post(url, data=payload)
+        #This makes sure the content is returned before calculating the response time.
+        response.content
+
+        #Feed the returned text to the parser
+        parser.feed(response.text)
+
+        #Update the value of the parameters and try the test again.
+        value = '<script id="Free money">alert("Free money!") ;</script>'
         payload = {}
         for param in formParams[url]:
             if param.get('name'):
@@ -219,6 +239,22 @@ def sanitization_check(discovered):
         parser.found = False
         #Declare the value we'll be using to check for sanitization
         value = "<button id='Free money'>Free money!</button>"
+
+        #Create params dict to pass through request.
+        params = {}
+        for param in urlParams[url]:
+            params[param] = value
+
+        #Make the POST request to the url using the build payload.
+        response = requests.get(url, params=params)
+        #This makes sure the content is returned before calculating the response time.
+        response.content
+
+        #Feed the returned text to the parser
+        parser.feed(response.text)
+
+        #Update the value of parameters and run test again.
+        value = '<script id="Free money">alert("Free money!");</script>'
 
         #Create params dict to pass through request.
         params = {}
