@@ -5,6 +5,17 @@ import discover
 import requests
 import time
 import requests.exceptions as exceptions
+from html.parser import HTMLParser
+
+#Define the html parser to use for lack of sanitization checking.
+class MyHTMLParser(HTMLParser):
+    found = False
+    def handle_starttag(self, tag, attrs):
+        #We will be using a button id of 'Free money' to identify those that were put into html from lack of sanitizing.
+        if tag == 'button':
+            print('found button', attrs)
+            if  attrs[0][1]=='Free money':
+                self.found = True
 
 #This will be used later for printing out error messages.
 VECTOR_TO_STRING = dict(XSS="Cross-Site Scripting", BFO="Buffer Overflow",
@@ -44,6 +55,11 @@ def run_tests(vectors, discovered, slow, sensitive):
     print('Testing URL Parameters...')
     print('-'*50)
     url_parameters(vectors, discovered, slow, sensitive)
+
+    print('-'*50)
+    print('Testing for input sanitization...')
+    print('-'*50)
+    sanitization_check(discovered)
 
 
 #Test the form parameters
@@ -163,11 +179,68 @@ def url_parameters(vectors, discovered, slow, sensitive):
                     print('\tVector type: ', key, ' - ', VECTOR_TO_STRING[key])
                     print('-----')
 
-
     return #This return is implicitly called, but better for function readability
 
 
+#Check for input sanitization using a specific case
+def sanitization_check(discovered):
+    # instantiate the parser
+    parser = MyHTMLParser()
 
+    #Copy data from discovered, better for readability
+    formParams = discovered['formParams']
+    urlParams = discovered['urlParams']
+
+    for url in formParams:
+        parser.found = False
+        value = "<button id='Free money'>Free money!</button>"
+        payload = {}
+        for param in formParams[url]:
+            if param.get('name'):
+                payload[param['name']] = value
+
+        #Make the POST request to the url using the build payload.
+        response = requests.post(url, data=payload)
+        #This makes sure the content is returned before calculating the response time.
+        response.content
+
+        #Feed the returned text to the parser
+        parser.feed(response.text)
+
+        if parser.found:
+            print("Possible lack of sanitization found!")
+            print('\tURL: ', url)
+            print(payload.keys())
+            print('-----')
+
+    #Now loop through the urlParams
+    for url in urlParams:
+        #Reset the parser
+        parser.found = False
+        #Declare the value we'll be using to check for sanitization
+        value = "<button id='Free money'>Free money!</button>"
+
+        #Create params dict to pass through request.
+        params = {}
+        for param in urlParams[url]:
+            params[param] = value
+
+        #Make the POST request to the url using the build payload.
+        response = requests.get(url, params=params)
+        #This makes sure the content is returned before calculating the response time.
+        response.content
+
+        #Feed the returned text to the parser
+        parser.feed(response.text)
+
+        #If a button matching the one we created was found, a lack of sanitization may have been found.
+        if parser.found:
+            print("Possible lack of sanitization found!")
+            print('\tURL: ', url)
+            print(params.keys())
+            print('-----')
+
+    return #This return is implicitly called, but better for function readability
 
 
 #Parse the vectors file into a dictionary of lists.
