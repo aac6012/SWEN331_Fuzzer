@@ -22,8 +22,12 @@ Valid arguments:
         --custom-auth (optional):   Signal that the fuzzer should use hard-coded authentication for a specific application (e.g. dvwa).
         --common-words (REQUIRED):  Newline-delimited file of common words to be used in page guessing and input guessing.
     test:
+	--common-words (REQUIRED):  The 'test' mode is dependent on the 'discover' mode, so this is a required parameter for test as well.
         --custom-auth (optional):   Signal that the fuzzer should use hard-coded authentication for a specific application (e.g. dvwa).
         --vectors (REQUIRED):       Newline-delimited file of common exploits to vulnerabilities.
         --sensitive (REQUIRED):     Newline-delimited file data that should never be leaked. It's assumed that this data is in the application's database (e.g. test data), but is not reported in any response.
         --random (optional):        When off, try each input to each page systematically.  When on, choose a random page, then a random input field and test all vectors. Default: false.
-        --slow (optional:           Number of milliseconds considered when a response is considered "slow". Default is 500 milliseconds.
+        --slow (optional):          Number of milliseconds considered when a response is considered "slow". Default is 500 milliseconds.
+
+Example statement:
+'fuzz test http://127.0.0.1/dvwa --common-words=myWords.txt --sensitive=sensitive.txt --vectors=vectors.txt --slow=1500'
